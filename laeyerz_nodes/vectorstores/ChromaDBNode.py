@@ -111,57 +111,5 @@ class ChromaDBNode(Node):
 
 
 
-def chroma_function(inputs):
-    """Chroma function that processes inputs and returns output"""
-    # Extract inputs - you can customize this based on your needs
-    chunks = inputs.get('text', '')
-    embedding_model = inputs.get('model', 'gpt-3.5-turbo')
-    
-    # Placeholder for OpenAI API call
-    # In a real implementation, you would call the OpenAI API here
-    response = f"Chroma processed: {text} using {model}"
-    
-    return {"output": response}
-
-
-def create_chroma_node(node_name):
-    """Factory function to create and return an ChromaNode"""
-    # Create the ChromaNode with proper initialization
-    ChromaNode = Node(
-        node_type='Chroma',
-        node_subtype='Vector Store',
-        node_name=node_name,
-        description='Node for Chroma API interactions'
-    )
-
-    # Set the function and configure inputs/outputs
-    ChromaNode.action = 'Chroma Vector Store call'
-    ChromaNode.set_function(chroma_function)
-    ChromaNode.inputs = ['text', 'model']  # Expected input parameters
-    ChromaNode.outputs = ['output']  # Expected output parameters
-    
-    return ChromaNode
-
-
-# Create a default instance
-#FaissNode = create_faiss_node()
-
-
-# Return the configured node
-if __name__ == "__main__":
-    # For testing the node
-    from laeyerzflow.flow.AppState import AppState
-    
-    app_state = AppState()
-    app_state.update('text', 'Hello from OpenAI!')
-    app_state.update('model', 'gpt-4')
-    
-    # result, next_node = OpenAINode.run(app_state)
-    # print(f"Result: {result}")
-    # print(f"Next node: {next_node}")
-
-
-
-
 
 

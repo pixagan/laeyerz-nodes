@@ -25,8 +25,6 @@ from pymongo import MongoClient
 from bson import ObjectId
 from datetime import datetime
 
-# filepath = os.getenv('MONGO_URI')
-# mongo_db = os.getenv('MONGO_DB')
 
 
 class MongoNode(Node):
@@ -72,7 +70,7 @@ class MongoNode(Node):
 
     def load_all_documents(self, collection_name):
         """Read documents matching the query"""
-        return self.db[collection_name].find()
+        return self.db[collection_name].find().to_list(length=None)
 
 
 

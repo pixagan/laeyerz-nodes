@@ -73,3 +73,8 @@ venv.bak/
 .DS_Store
 
 __pycache__/
+
+# Environment variables
+.env
+
+/laeyerz_nodes/dev
