@@ -34,7 +34,7 @@ class MongoNode(Node):
         self.client = MongoClient(config.get('MONGO_URI'))
         self.db     = self.client[config.get('MONGO_DB')]
         print("MongoNode initialized", self.client, self.db, config.get('MONGO_URI'), config.get('MONGO_DB'))
-        #self.collection = self.db[config.get('MONGO_COLLECTION')]
+       
 
 
     def create_collection(self, collection_name):
