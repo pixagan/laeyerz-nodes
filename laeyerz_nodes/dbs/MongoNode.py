@@ -21,6 +21,7 @@ from laeyerz.flow.Node import Node
 
 
 #import os
+import pymongo
 from pymongo import MongoClient
 from bson import ObjectId
 from datetime import datetime
@@ -48,6 +49,11 @@ class MongoNode(Node):
         return self.db[collection_name]
 
 
+    def count_documents(self, collection_name, params={}):
+        """Count the number of documents in a collection"""
+        return self.db[collection_name].count_documents(params)
+
+
     def create_document(self, collection_name, data):
         """Create a new document in MongoDB"""
 
@@ -70,13 +76,13 @@ class MongoNode(Node):
 
     def load_all_documents(self, collection_name):
         """Read documents matching the query"""
-        return self.db[collection_name].find().to_list(length=None)
+        return self.db[collection_name].find().sort("created_at", pymongo.DESCENDING).to_list(length=None)
 
 
 
     def load_documents(self, collection_name, query):
         """Read documents matching the query"""
-        return self.db[collection_name].find(query).to_list(length=None)
+        return self.db[collection_name].find(query).sort("created_at", pymongo.DESCENDING).to_list(length=None)
 
 
     def load_document_id(self, collection_name, id):
