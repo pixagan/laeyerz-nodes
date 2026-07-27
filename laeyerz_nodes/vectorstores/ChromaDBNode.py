@@ -16,69 +16,37 @@
 ChromaDBNode module for ChromaDB vector store operations
 in the Laeyerz framework.
 """
-from laeyerz.flow.Node import Action
-
-class ChromaDBNode(Node):
-
-    def __init__(self, node_name, config={}):
-        super().__init__(node_type='Chroma', node_name=node_name, node_subtype='Vector Store', description='ChromaDB Node')
-
-        self.client     = None
-        self.collection = None
-
-        
-        self.add_action(action_name="add_documents", function=self.add_documents, inputs=["documents"], parameters=["model"], outputs=["output"], isDefault=True)
-        self.add_action(action_name="query_documents", function=self.query_documents, inputs=["query"], parameters=["model"], outputs=["output"])
-
-        self.params = {
-            "db_path": "default",
-            "collection_name": "default",
-            "embedding_model": "default",
-            "similarity_metric": "default",
-            "similarity_threshold": 0.5,
-            "similarity_top_k": 5,
-            "similarity_filter": "default",
-        }
+import chromadb
+import uuid
+from laeyerz.utils.KeyManager import KeyManager
+from laeyerz.flow.Node import Node
 
 
-    def setup(self):
-        print(f"Setting up node {self.name}")
-
-
-    def connect(self, connection_type, url, api_key):
-        if connection_type == "chroma":
-            self.client = chroma.Client(url=url, api_key=api_key)
-        elif connection_type == "faiss":
-            self.client = faiss.Index(url)
-        else:
-            raise ValueError(f"Invalid connection type: {connection_type}")
-
+class ChromaNode(Node):
     
-    def query_documents(self, collection_name, query):
-        collection = self.get_collection(collection_name)
-        results = collection.query(
-            query_texts=[query], # Chroma will embed this for you
-            n_results=5 # how many results to return
+    def __init__(self, name, config={}):
+        print(f"Initializing ChromaNode {name}")
+        super().__init__(name, config)
+
+        self.db_path = config["db_path"]
+
+        self.client = chromadb.PersistentClient(
+            path=str(self.db_path)
         )
-        return results
+        print(f"ChromaClient initialized at {self.db_path}")
 
-    def get_collections(self):
-        return self.client.list_collections()
+        self.add_actions()
+        
 
-
-    def create_collection(self, name):
-        collection = self.client.create_collection(name=name)
+    def create_get_collection(self, name):
+        collection = self.client.get_or_create_collection(name=name)
         return collection
 
-
-    def get_collection(self, collection_name):
-        collection = self.client.get_or_create_collection(name="my_collection")
-        return collection
 
 
     def add_documents(self, collection_name, documents, metadata=[]):
         
-        collection = self.get_collection(collection_name)
+        collection = self.create_get_collection(collection_name)
         
         ids = [str(uuid.uuid4()) for _ in documents]
         
@@ -91,23 +59,244 @@ class ChromaDBNode(Node):
         return ids
 
 
+    def update_documents(self, collection_name, ids, documents, metadata=[]):
+        collection = self.create_get_collection(collection_name)
+        collection.update(
+            ids=ids,
+            documents=documents,
+            metadatas=metadata
+        )
+        return ids
 
-    def delete_collection(self, collection_name, ids=[]):
-        self.client.delete_collection(name=collection_name)
+
+    def search(self, collection_name, query, n_results=5):
+
+        collection = self.create_get_collection(collection_name)
+
+        results = collection.query(
+            query_texts=[query],
+            n_results=n_results
+        )
+
+        matches = []
+
+        for index, document in enumerate(results["documents"][0]):
+            matches.append(
+                {
+                    "id": results["ids"][0][index],
+                    "document": document,
+                    "metadata": results["metadatas"][0][index],
+                    "distance": results["distances"][0][index],
+                }
+            )
+
+
+
+        return matches
+
 
 
     def delete_documents(self, collection_name, ids):
-        if len(ids) > 0:
-            collection = self.get_collection(collection_name)
-            collection.delete(ids=ids)
+        collection = self.create_get_collection(collection_name)
+        collection.delete(
+            ids=ids
+        )
+        return ids
+
+
+    def delete_collection(self, collection_name):
+        collection = self.create_get_collection(collection_name)
+        collection.delete()
+        return collection_name
+   
+
+    def get_chroma_client(self):
+        return self.chroma_client
+
+
+    def add_actions(self):
+
+        add_documents_inputs = [
+            {
+                "name":"collection_name",
+                "type":"name",
+                "description":"The name of the collection to add the documents to",
+                "inputType":"input",
+                "source":"",
+                "value":None
+            },
+            {
+                "name":"documents",
+                "type":"list",
+                "description":"The documents to add to the collection",
+                "inputType":"input",
+                "source":"",
+                "value":None
+            },
+            {
+                "name":"metadata",  
+                "type":"list",
+                "description":"The metadata to add to the documents",
+                "inputType":"input",
+                "source":"",
+                "value":None
+            }
+        ]
+        add_documents_outputs = [
+            {
+                "name":"ids",
+                "type":"list",
+                "description":"The ids of the documents added to the collection",
+                "inputType":"output",
+                "source":"",
+                "value":None
+            }
+        ]
+
+        self.add_action(action_name="add_documents", 
+        function=self.add_documents, 
+        parameters={}, 
+        inputs=add_documents_inputs, 
+        outputs=add_documents_outputs, 
+        isDefault=False, 
+        description="Add documents to the collection")
 
 
 
-    def update_collection(self, collection_name, ids, documents):
-        collection = self.get_collection(collection_name)
-        collection.upsert(ids=ids, documents=documents)
+        update_documents_inputs = [
+            {
+                "name":"collection_name",
+                "type":"name",
+                "description":"The name of the collection to update the documents in",
+                "inputType":"input",
+                "source":"",
+                "value":None
+            },
+            {
+                "name":"ids",
+                "type":"list",
+                "description":"The ids of the documents to update in the collection",
+                "inputType":"input",
+                "source":"",
+                "value":None
+            },
+            {
+                "name":"documents",
+                "type":"list",
+                "description":"The documents to update in the collection",
+                "inputType":"input",
+                "source":"",
+                "value":None
+            },
+            {
+                "name":"metadata",
+                "type":"list",
+                "description":"The metadata to update the documents with",
+                "inputType":"input",
+                "source":"",
+                "value":None
+            }
+        ]
+        update_documents_outputs = [
+            {
+                "name":"ids",
+                "type":"list",
+                "description":"The ids of the documents updated in the collection",
+                "inputType":"output",
+                "source":"",
+                "value":None
+            }
+        ]
+
+        
+        self.add_action(action_name="update_documents", 
+        function=self.update_documents, 
+        parameters={}, 
+        inputs=update_documents_inputs, 
+        outputs=update_documents_outputs, 
+        isDefault=False, 
+        description="Update documents in the collection")
+        
 
 
+        search_inputs = [
+            {
+                "name":"collection_name",
+                "type":"name",
+                "description":"The name of the collection to search in",
+                "inputType":"input",
+                "source":"",
+                "value":None
+            },
+            {
+                "name":"query",
+                "type":"string",
+                "description":"The query to search for in the collection",
+                "inputType":"input",
+                "source":"",
+                "value":None
+            },
+            {
+                "name":"n_results",
+                "type":"int",
+                "description":"The number of results to return",
+                "inputType":"input",
+                "source":"",
+                "value":None
+            }
+        ]
+        search_outputs = [
+            {
+                "name":"matches",
+                "type":"list",
+                "description":"The matches found in the collection",
+                "inputType":"output",
+                "source":"",
+                "value":None
+            }   
+        ]
+
+
+        self.add_action(action_name="search", 
+        function=self.search, 
+        parameters={}, 
+        inputs=search_inputs, 
+        outputs=search_outputs, 
+        isDefault=False, 
+        description="Search the collection")
+
+
+
+        delete_documents_inputs = [
+            {
+                "name":"collection_name",
+                "type":"name",
+                "description":"The name of the collection to delete the documents from",
+                "inputType":"input",
+                "source":"",
+                "value":None
+            },
+        ]
+        delete_documents_outputs = [
+            {
+                "name":"ids",
+                "type":"list",
+                "description":"The ids of the documents deleted from the collection",
+                "inputType":"output",
+                "source":"",
+                "value":None
+            }
+        ]
+
+
+        # self.add_action(action_name="delete_documents", 
+        # function=self.delete_documents, 
+        # parameters={}, 
+        # inputs=delete_documents_inputs, 
+        # outputs=delete_documents_outputs, 
+        # isDefault=False, 
+        # description="Delete documents from the collection")
+        
 
 
 
