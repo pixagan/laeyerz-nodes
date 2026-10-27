@@ -13,8 +13,7 @@
 # limitations under the License.
 
 """
-JevNode module for Jev LLM integration
-in the Laeyerz framework.
+JevNode is a Laeyerz connector for the Typesafe Jev AI Model.
 """
 from dotenv import load_dotenv
 import os
